@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"url-shortener/internal/config"
 
@@ -37,25 +36,24 @@ func setupLogger(env string) *slog.Logger {
 		log = slog.New(
 			slog.NewTextHandler(
 				os.Stdout,
-				&slog.HandlerOptions{Level: slog.LevelDebug}
+				&slog.HandlerOptions{Level: slog.LevelDebug},
 			),
 		)
 	case envDev:
 		log = slog.New(
 			slog.NewJSONHandler(
 				os.Stdout,
-				&slog.HandlerOptions{Level: slog.LevelDebug}
+				&slog.HandlerOptions{Level: slog.LevelDebug},
 			),
 		)
-	}
 	case envProd:
 		log = slog.New(
 			slog.NewJSONHandler(
 				os.Stdout,
-				&slog.HandlerOptions{Level: slog.LevelInfo}
+				&slog.HandlerOptions{Level: slog.LevelInfo},
 			),
 		)
 	}
 
-	return log 
+	return log
 }

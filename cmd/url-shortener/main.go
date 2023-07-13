@@ -3,9 +3,12 @@ package main
 import (
 	"os"
 	"url-shortener/internal/config"
+	mwLogger "url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/sl"
 	"url-shortener/internal/storage/sqlite"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/exp/slog"
 )
 
@@ -29,8 +32,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Init router: chi, chi-render
+	router := chi.NewRouter()
 
+	router.Use(middleware.RequestID)
+	router.Use(mwLogger.New(log))
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.URLFormat)
 	// TODO: start server
 }
 

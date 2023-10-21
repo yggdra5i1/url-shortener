@@ -1,8 +1,11 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"url-shortener/internal/config"
+	"url-shortener/internal/http-server/handlers/redirect"
+	"url-shortener/internal/http-server/handlers/url/save"
 	mwLogger "url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/handlers/slogpretty"
 	"url-shortener/internal/lib/logger/sl"
@@ -27,19 +30,53 @@ func main() {
 	log.Info("starting url-shortener", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
 
-	_, err := sqlite.New(cfg.StoragePath)
+	storage, err := sqlite.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
 
+	_ = storage
+
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
 	router.Use(mwLogger.New(log))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
-	// TODO: start server
+
+	// Все пути этого роутера будут начинаться с префикса `/url`
+	router.Route("/url", func(r chi.Router) {
+		// Подключаем авторизацию
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			// Передаём в middleware креды
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+			// Если у вас более одного пользователя,
+			// то можете добавить остальные пары по аналогии.
+		}))
+
+		r.Post("/", save.New(log, storage))
+		// TODO: add DELETE /url/{id}
+	})
+
+	router.Get("/{alias}", redirect.New(log, storage))
+
+	log.Info("starting server", slog.String("address", cfg.Address))
+
+	srv := &http.Server{
+		Addr:         cfg.Address,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("failed to start server")
+	}
+
+	log.Error("server stopped")
 }
 
 func setupLogger(env string) *slog.Logger {
